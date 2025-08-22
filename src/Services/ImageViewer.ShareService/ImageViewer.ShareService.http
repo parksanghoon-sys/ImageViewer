@@ -1,0 +1,6 @@
+@ImageViewer.ShareService_HostAddress = http://localhost:5125
+
+GET {{ImageViewer.ShareService_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

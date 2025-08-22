@@ -1,0 +1,6 @@
+@ImageViewer.GatewayService_HostAddress = http://localhost:5212
+
+GET {{ImageViewer.GatewayService_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

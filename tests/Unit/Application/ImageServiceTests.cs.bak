@@ -1,0 +1,345 @@
+using ImageViewer.Application.Services;
+using ConcreteImageService = ImageViewer.Application.Services.ImageService;
+using ImageViewer.Contracts.Images;
+using ImageViewer.Domain.Entities;
+using ImageViewer.Infrastructure.Data;
+using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
+
+namespace ImageViewer.Tests.Unit.Application;
+
+/// <summary>
+/// ImageService에 대한 단위 테스트
+/// </summary>
+public class ImageServiceTests : IDisposable
+{
+    private readonly ApplicationDbContext _context;
+    private readonly Mock<ILogger<ConcreteImageService>> _mockLogger;
+    private readonly Mock<IConfiguration> _mockConfiguration;
+    private readonly ConcreteImageService _imageService;
+    private readonly string _tempUploadPath;
+
+    public ImageServiceTests()
+    {
+        // InMemory 데이터베이스 설정
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+            .Options;
+
+        _context = new ApplicationDbContext(options);
+        _mockLogger = new Mock<ILogger<ConcreteImageService>>();
+        _mockConfiguration = new Mock<IConfiguration>();
+
+        // 임시 업로드 경로 설정
+        _tempUploadPath = Path.Combine(Path.GetTempPath(), "ImageViewer_Tests", Guid.NewGuid().ToString());
+        Directory.CreateDirectory(_tempUploadPath);
+
+        _mockConfiguration.Setup(x => x["FileUpload:UploadPath"]).Returns(_tempUploadPath);
+        _mockConfiguration.Setup(x => x["FileUpload:MaxFileSize"]).Returns("10485760"); // 10MB
+        _mockConfiguration.Setup(x => x["FileUpload:AllowedExtensions"]).Returns(".jpg,.jpeg,.png,.gif");
+
+        _imageService = new ConcreteImageService(_context, _mockLogger.Object, _mockConfiguration.Object);
+    }
+
+    [Fact]
+    public async Task UploadImageAsync_WhenValidRequest_ShouldCreateImageSuccessfully()
+    {
+        // Arrange
+        var userId = "test-user-id";
+        var file = CreateMockImageFile("test.jpg", "image/jpeg", 1024);
+        var request = new UploadImageRequest
+        {
+            File = file,
+            Title = "Test Image",
+            Description = "Test Description",
+            IsPublic = true,
+            Tags = "test,image",
+            UserId = userId
+        };
+
+        // Act
+        var result = await _imageService.UploadImageAsync(request);
+
+        // Assert
+        result.Should().NotBeNull();
+        result.Title.Should().Be("Test Image");
+        result.Description.Should().Be("Test Description");
+        result.UserId.Should().Be(userId);
+        result.IsPublic.Should().BeTrue();
+        result.Tags.Should().Contain("test").And.Contain("image");
+
+        // 데이터베이스에 저장되었는지 확인
+        var savedImage = await _context.Images.FirstOrDefaultAsync(i => i.Id == result.Id);
+        savedImage.Should().NotBeNull();
+        savedImage!.UserId.Should().Be(userId);
+    }
+
+    [Fact]
+    public async Task UploadImageAsync_WhenUserIdIsNull_ShouldThrowArgumentNullException()
+    {
+        // Arrange
+        var file = CreateMockImageFile("test.jpg", "image/jpeg", 1024);
+        var request = new UploadImageRequest
+        {
+            File = file,
+            Title = "Test Image",
+            UserId = null!
+        };
+
+        // Act & Assert
+        var act = () => _imageService.UploadImageAsync(request);
+        await act.Should().ThrowAsync<ArgumentNullException>();
+    }
+
+    [Fact]
+    public async Task GetUserImagesAsync_WhenUserHasImages_ShouldReturnImages()
+    {
+        // Arrange
+        var userId = "test-user-id";
+        await SeedTestImages(userId, 5);
+
+        var request = new GetImagesRequest
+        {
+            Page = 1,
+            PageSize = 10
+        };
+
+        // Act
+        var result = await _imageService.GetUserImagesAsync(userId, request);
+
+        // Assert
+        result.Should().NotBeNull();
+        result.Images.Should().HaveCount(5);
+        result.Images.Should().OnlyContain(i => i.UserId == userId);
+        result.Pagination.TotalItems.Should().Be(5);
+        result.Pagination.CurrentPage.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task GetUserImagesAsync_WhenUserHasNoImages_ShouldReturnEmptyList()
+    {
+        // Arrange
+        var userId = "user-with-no-images";
+        var request = new GetImagesRequest
+        {
+            Page = 1,
+            PageSize = 10
+        };
+
+        // Act
+        var result = await _imageService.GetUserImagesAsync(userId, request);
+
+        // Assert
+        result.Should().NotBeNull();
+        result.Images.Should().BeEmpty();
+        result.Pagination.TotalItems.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task GetImageByIdAsync_WhenImageExists_ShouldReturnImage()
+    {
+        // Arrange
+        var userId = "test-user-id";
+        var testImage = await CreateTestImageInDatabase(userId);
+
+        // Act
+        var result = await _imageService.GetImageByIdAsync(testImage.Id, userId);
+
+        // Assert
+        result.Should().NotBeNull();
+        result!.Id.Should().Be(testImage.Id);
+        result.UserId.Should().Be(userId);
+        result.IsOwner.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task GetImageByIdAsync_WhenImageNotExists_ShouldReturnNull()
+    {
+        // Arrange
+        var userId = "test-user-id";
+        var nonExistentImageId = Guid.NewGuid();
+
+        // Act
+        var result = await _imageService.GetImageByIdAsync(nonExistentImageId, userId);
+
+        // Assert
+        result.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task GetImageByIdAsync_WhenImageBelongsToOtherUser_ShouldReturnNull()
+    {
+        // Arrange
+        var ownerId = "owner-user-id";
+        var requesterId = "requester-user-id";
+        var testImage = await CreateTestImageInDatabase(ownerId);
+
+        // Act
+        var result = await _imageService.GetImageByIdAsync(testImage.Id, requesterId);
+
+        // Assert
+        result.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task DeleteImageAsync_WhenImageExists_ShouldDeleteSuccessfully()
+    {
+        // Arrange
+        var userId = "test-user-id";
+        var testImage = await CreateTestImageInDatabase(userId);
+
+        // Act
+        var result = await _imageService.DeleteImageAsync(testImage.Id, userId);
+
+        // Assert
+        result.Should().BeTrue();
+
+        // 데이터베이스에서 삭제되었는지 확인
+        var deletedImage = await _context.Images.FirstOrDefaultAsync(i => i.Id == testImage.Id);
+        deletedImage.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task DeleteImageAsync_WhenImageNotExists_ShouldReturnFalse()
+    {
+        // Arrange
+        var userId = "test-user-id";
+        var nonExistentImageId = Guid.NewGuid();
+
+        // Act
+        var result = await _imageService.DeleteImageAsync(nonExistentImageId, userId);
+
+        // Assert
+        result.Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData("Title")]
+    [InlineData("UploadedAt")]
+    [InlineData("FileSize")]
+    public async Task GetUserImagesAsync_WhenSortingByDifferentFields_ShouldSortCorrectly(string sortBy)
+    {
+        // Arrange
+        var userId = "test-user-id";
+        await SeedTestImages(userId, 3);
+
+        var request = new GetImagesRequest
+        {
+            Page = 1,
+            PageSize = 10,
+            SortBy = sortBy,
+            SortDirection = "asc"
+        };
+
+        // Act
+        var result = await _imageService.GetUserImagesAsync(userId, request);
+
+        // Assert
+        result.Should().NotBeNull();
+        result.Images.Should().HaveCount(3);
+        result.Images.Should().BeInAscendingOrder(i => GetSortValue(i, sortBy));
+    }
+
+    [Fact]
+    public async Task GetUserImagesAsync_WhenPaging_ShouldReturnCorrectPage()
+    {
+        // Arrange
+        var userId = "test-user-id";
+        await SeedTestImages(userId, 15);
+
+        var request = new GetImagesRequest
+        {
+            Page = 2,
+            PageSize = 5
+        };
+
+        // Act
+        var result = await _imageService.GetUserImagesAsync(userId, request);
+
+        // Assert
+        result.Should().NotBeNull();
+        result.Images.Should().HaveCount(5);
+        result.Pagination.CurrentPage.Should().Be(2);
+        result.Pagination.TotalItems.Should().Be(15);
+        result.Pagination.TotalPages.Should().Be(3);
+    }
+
+    private IFormFile CreateMockImageFile(string fileName, string contentType, long size)
+    {
+        var file = new Mock<IFormFile>();
+        file.Setup(f => f.FileName).Returns(fileName);
+        file.Setup(f => f.ContentType).Returns(contentType);
+        file.Setup(f => f.Length).Returns(size);
+        
+        var content = new byte[size];
+        new Random().NextBytes(content);
+        var stream = new MemoryStream(content);
+        file.Setup(f => f.OpenReadStream()).Returns(stream);
+        file.Setup(f => f.CopyToAsync(It.IsAny<Stream>(), It.IsAny<CancellationToken>()))
+            .Returns((Stream target, CancellationToken token) => stream.CopyToAsync(target, token));
+
+        return file.Object;
+    }
+
+    private async Task<Image> CreateTestImageInDatabase(string userId)
+    {
+        var image = new Image(
+            userId,
+            "test.jpg",
+            $"stored_{Guid.NewGuid()}.jpg",
+            "/uploads/test.jpg",
+            1024000L,
+            "image/jpeg",
+            1920,
+            1080,
+            "Test Image"
+        );
+
+        _context.Images.Add(image);
+        await _context.SaveChangesAsync();
+        return image;
+    }
+
+    private async Task SeedTestImages(string userId, int count)
+    {
+        for (int i = 0; i < count; i++)
+        {
+            var image = new Image(
+                userId,
+                $"test{i}.jpg",
+                $"stored_test{i}_{Guid.NewGuid()}.jpg",
+                $"/uploads/test{i}.jpg",
+                1024000L + (i * 1000), // 다른 파일 크기
+                "image/jpeg",
+                1920,
+                1080,
+                $"Test Image {i}"
+            );
+
+            _context.Images.Add(image);
+        }
+
+        await _context.SaveChangesAsync();
+    }
+
+    private static object GetSortValue(ImageResponse image, string sortBy) => sortBy switch
+    {
+        "Title" => image.Title,
+        "UploadedAt" => image.UploadedAt,
+        "FileSize" => image.FileSize,
+        _ => image.Title
+    };
+
+    public void Dispose()
+    {
+        _context?.Dispose();
+        
+        // 임시 파일 정리
+        if (Directory.Exists(_tempUploadPath))
+        {
+            Directory.Delete(_tempUploadPath, true);
+        }
+    }
+}

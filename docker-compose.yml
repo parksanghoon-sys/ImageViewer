@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  # PostgreSQL 데이터베이스 서비스
+  postgres:
+    image: postgres:15
+    container_name: imageviewer_postgres
+    environment:
+      POSTGRES_DB: ImageViewerDB
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: your_password_here
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ImageViewerDB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # RabbitMQ 메시지 브로커 (2주차에서 사용 예정)
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: imageviewer_rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: rabbitmq
+      RABBITMQ_DEFAULT_PASS: rabbitmq123
+    ports:
+      - "5672:5672"      # AMQP 포트
+      - "15672:15672"    # 관리 UI 포트
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+    driver: local
+  rabbitmq_data:
+    driver: local
+
+networks:
+  default:
+    name: imageviewer_network

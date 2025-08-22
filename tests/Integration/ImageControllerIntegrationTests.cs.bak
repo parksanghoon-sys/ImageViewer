@@ -1,0 +1,339 @@
+using ImageViewer.Contracts.Images;
+using ImageViewer.Infrastructure.Data;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using System.Net.Http.Headers;
+using System.Security.Claims;
+using System.Text;
+using System.Text.Encodings.Web;
+using System.Text.Json;
+
+namespace ImageViewer.Tests.Integration;
+
+/// <summary>
+/// ImageController 통합 테스트
+/// AuthContext와 분리된 상태에서 API 엔드포인트 테스트
+/// </summary>
+public class ImageControllerIntegrationTests : IDisposable
+{
+    private readonly WebApplicationFactory<ImageViewer.ImageService.Program> _factory;
+    private readonly HttpClient _client;
+    private readonly ApplicationDbContext _context;
+
+    public ImageControllerIntegrationTests()
+    {
+        _factory = new WebApplicationFactory<ImageViewer.ImageService.Program>().WithWebHostBuilder(builder =>
+        {
+            builder.UseEnvironment("Testing");
+            
+            builder.ConfigureServices(services =>
+            {
+                // 기존 DbContext 제거
+                var descriptor = services.SingleOrDefault(d => d.ServiceType == typeof(DbContextOptions<ApplicationDbContext>));
+                if (descriptor != null)
+                {
+                    services.Remove(descriptor);
+                }
+
+                // InMemory 데이터베이스로 교체
+                services.AddDbContext<ApplicationDbContext>(options =>
+                {
+                    options.UseInMemoryDatabase($"TestDb_{Guid.NewGuid()}");
+                });
+
+                // 테스트용 인증 스키마 추가
+                services.AddAuthentication("Test")
+                    .AddScheme<AuthenticationSchemeOptions, TestAuthenticationHandler>("Test", options => { });
+            });
+        });
+
+        _client = _factory.CreateClient();
+
+        // DbContext 가져오기
+        var scope = _factory.Services.CreateScope();
+        _context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        _context.Database.EnsureCreated();
+    }
+
+    [Fact]
+    public async Task UploadImage_WithValidFile_ShouldReturnSuccess()
+    {
+        // Arrange
+        SetAuthenticatedUser("test-user-123");
+        
+        using var form = new MultipartFormDataContent();
+        var fileContent = new ByteArrayContent(CreateTestImageBytes());
+        fileContent.Headers.ContentType = MediaTypeHeaderValue.Parse("image/jpeg");
+        form.Add(fileContent, "file", "test.jpg");
+        form.Add(new StringContent("Test Image"), "title");
+        form.Add(new StringContent("Test Description"), "description");
+        form.Add(new StringContent("true"), "isPublic");
+        form.Add(new StringContent("test,image"), "tags");
+
+        // Act
+        var response = await _client.PostAsync("/api/image/upload", form);
+
+        // Assert
+        response.Should().BeSuccessful();
+        var content = await response.Content.ReadAsStringAsync();
+        var result = JsonSerializer.Deserialize<ApiResponse<ImageResponse>>(content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        
+        result.Should().NotBeNull();
+        result!.Success.Should().BeTrue();
+        result.Data.Should().NotBeNull();
+        result.Data!.Title.Should().Be("Test Image");
+        result.Data.UserId.Should().Be("test-user-123");
+    }
+
+    [Fact]
+    public async Task GetImages_WithAuthenticatedUser_ShouldReturnUserImages()
+    {
+        // Arrange
+        var userId = "test-user-456";
+        SetAuthenticatedUser(userId);
+        await SeedTestImages(userId, 3);
+
+        // Act
+        var response = await _client.GetAsync("/api/image?page=1&pageSize=10");
+
+        // Assert
+        response.Should().BeSuccessful();
+        var content = await response.Content.ReadAsStringAsync();
+        var result = JsonSerializer.Deserialize<ApiResponse<ImageListResponse>>(content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        
+        result.Should().NotBeNull();
+        result!.Success.Should().BeTrue();
+        result.Data.Should().NotBeNull();
+        result.Data!.Images.Should().HaveCount(3);
+        result.Data.Images.Should().OnlyContain(i => i.UserId == userId);
+    }
+
+    [Fact]
+    public async Task GetImageById_WhenImageExists_ShouldReturnImage()
+    {
+        // Arrange
+        var userId = "test-user-789";
+        SetAuthenticatedUser(userId);
+        var testImage = await CreateTestImageInDatabase(userId);
+
+        // Act
+        var response = await _client.GetAsync($"/api/image/{testImage.Id}");
+
+        // Assert
+        response.Should().BeSuccessful();
+        var content = await response.Content.ReadAsStringAsync();
+        var result = JsonSerializer.Deserialize<ApiResponse<ImageResponse>>(content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        
+        result.Should().NotBeNull();
+        result!.Success.Should().BeTrue();
+        result.Data.Should().NotBeNull();
+        result.Data!.Id.Should().Be(testImage.Id);
+        result.Data.IsOwner.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task GetImageById_WhenImageBelongsToOtherUser_ShouldReturnNotFound()
+    {
+        // Arrange
+        var ownerId = "owner-user";
+        var requesterId = "requester-user";
+        var testImage = await CreateTestImageInDatabase(ownerId);
+        
+        SetAuthenticatedUser(requesterId);
+
+        // Act
+        var response = await _client.GetAsync($"/api/image/{testImage.Id}");
+
+        // Assert
+        response.StatusCode.Should().Be(System.Net.HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task DeleteImage_WhenImageExists_ShouldDeleteSuccessfully()
+    {
+        // Arrange
+        var userId = "delete-test-user";
+        SetAuthenticatedUser(userId);
+        var testImage = await CreateTestImageInDatabase(userId);
+
+        // Act
+        var response = await _client.DeleteAsync($"/api/image/{testImage.Id}");
+
+        // Assert
+        response.Should().BeSuccessful();
+        
+        // 데이터베이스에서 삭제되었는지 확인
+        var deletedImage = await _context.Images.FirstOrDefaultAsync(i => i.Id == testImage.Id);
+        deletedImage.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task GetImages_WithPaging_ShouldReturnCorrectPage()
+    {
+        // Arrange
+        var userId = "paging-test-user";
+        SetAuthenticatedUser(userId);
+        await SeedTestImages(userId, 15);
+
+        // Act
+        var response = await _client.GetAsync("/api/image?page=2&pageSize=5");
+
+        // Assert
+        response.Should().BeSuccessful();
+        var content = await response.Content.ReadAsStringAsync();
+        var result = JsonSerializer.Deserialize<ApiResponse<ImageListResponse>>(content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        
+        result.Should().NotBeNull();
+        result!.Data!.Images.Should().HaveCount(5);
+        result.Data.Pagination.CurrentPage.Should().Be(2);
+        result.Data.Pagination.TotalItems.Should().Be(15);
+    }
+
+    [Fact]
+    public async Task GetImages_WithSorting_ShouldReturnSortedResults()
+    {
+        // Arrange
+        var userId = "sorting-test-user";
+        SetAuthenticatedUser(userId);
+        await SeedTestImages(userId, 5);
+
+        // Act
+        var response = await _client.GetAsync("/api/image?sortBy=Title&sortDirection=asc");
+
+        // Assert
+        response.Should().BeSuccessful();
+        var content = await response.Content.ReadAsStringAsync();
+        var result = JsonSerializer.Deserialize<ApiResponse<ImageListResponse>>(content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        
+        result.Should().NotBeNull();
+        result!.Data!.Images.Should().HaveCount(5);
+        result.Data.Images.Should().BeInAscendingOrder(i => i.Title);
+    }
+
+    [Fact]
+    public async Task UploadImage_WithoutAuthentication_ShouldReturnUnauthorized()
+    {
+        // Arrange
+        using var form = new MultipartFormDataContent();
+        var fileContent = new ByteArrayContent(CreateTestImageBytes());
+        fileContent.Headers.ContentType = MediaTypeHeaderValue.Parse("image/jpeg");
+        form.Add(fileContent, "file", "test.jpg");
+
+        // Act (인증 헤더 없이 요청)
+        var response = await _client.PostAsync("/api/image/upload", form);
+
+        // Assert
+        response.StatusCode.Should().Be(System.Net.HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task GetImages_WithSearch_ShouldReturnFilteredResults()
+    {
+        // Arrange
+        var userId = "search-test-user";
+        SetAuthenticatedUser(userId);
+        
+        // 검색 가능한 이미지들 생성
+        await CreateTestImageInDatabase(userId, "vacation.jpg", "Vacation Photo");
+        await CreateTestImageInDatabase(userId, "work.jpg", "Work Meeting");
+        await CreateTestImageInDatabase(userId, "holiday.jpg", "Holiday Celebration");
+
+        // Act
+        var response = await _client.GetAsync("/api/image?search=vacation");
+
+        // Assert
+        response.Should().BeSuccessful();
+        var content = await response.Content.ReadAsStringAsync();
+        var result = JsonSerializer.Deserialize<ApiResponse<ImageListResponse>>(content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        
+        result.Should().NotBeNull();
+        result!.Data!.Images.Should().HaveCount(1);
+        result.Data.Images.First().Title.Should().Contain("Vacation");
+    }
+
+    private void SetAuthenticatedUser(string userId)
+    {
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Test", userId);
+    }
+
+    private async Task<Domain.Entities.Image> CreateTestImageInDatabase(string userId, string fileName = "test.jpg", string title = "Test Image")
+    {
+        var image = new Domain.Entities.Image(
+            userId,
+            fileName,
+            $"stored_{Guid.NewGuid()}_{fileName}",
+            $"/uploads/{fileName}",
+            1024000L,
+            "image/jpeg",
+            1920,
+            1080,
+            title
+        );
+
+        _context.Images.Add(image);
+        await _context.SaveChangesAsync();
+        return image;
+    }
+
+    private async Task SeedTestImages(string userId, int count)
+    {
+        for (int i = 0; i < count; i++)
+        {
+            await CreateTestImageInDatabase(userId, $"test{i}.jpg", $"Test Image {i}");
+        }
+    }
+
+    private static byte[] CreateTestImageBytes()
+    {
+        // 간단한 테스트용 이미지 바이트 배열 생성
+        var content = new byte[1024];
+        new Random().NextBytes(content);
+        return content;
+    }
+
+    public void Dispose()
+    {
+        _context?.Dispose();
+        _client?.Dispose();
+    }
+}
+
+/// <summary>
+/// 테스트용 인증 핸들러
+/// </summary>
+public class TestAuthenticationHandler : AuthenticationHandler<AuthenticationSchemeOptions>
+{
+    public TestAuthenticationHandler(IOptionsMonitor<AuthenticationSchemeOptions> options,
+        ILoggerFactory logger, UrlEncoder encoder)
+        : base(options, logger, encoder)
+    {
+    }
+
+    protected override Task<AuthenticateResult> HandleAuthenticateAsync()
+    {
+        var authHeader = Request.Headers["Authorization"].ToString();
+        if (string.IsNullOrEmpty(authHeader) || !authHeader.StartsWith("Test "))
+        {
+            return Task.FromResult(AuthenticateResult.Fail("No valid test auth header"));
+        }
+
+        var userId = authHeader.Substring("Test ".Length);
+        var claims = new[]
+        {
+            new Claim(ClaimTypes.NameIdentifier, userId),
+            new Claim(ClaimTypes.Name, $"TestUser_{userId}")
+        };
+
+        var identity = new ClaimsIdentity(claims, "Test");
+        var principal = new ClaimsPrincipal(identity);
+        var ticket = new AuthenticationTicket(principal, "Test");
+
+        return Task.FromResult(AuthenticateResult.Success(ticket));
+    }
+}

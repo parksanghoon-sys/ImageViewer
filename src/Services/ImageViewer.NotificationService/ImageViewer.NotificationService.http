@@ -1,0 +1,6 @@
+@ImageViewer.NotificationService_HostAddress = http://localhost:5267
+
+GET {{ImageViewer.NotificationService_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
