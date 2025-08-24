@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import ImageUpload from './ImageUpload';
 import ImageGallery from './ImageGallery';
+import ShareManagement from './ShareManagement';
+import SharedImageGallery from './SharedImageGallery';
 
 interface User {
   id: string;
@@ -16,10 +18,11 @@ interface SimpleDashboardProps {
   onLogout: () => void;
 }
 
-type ActiveTab = 'dashboard' | 'gallery' | 'upload' | 'shared';
+type ActiveTab = 'dashboard' | 'gallery' | 'upload' | 'shared' | 'share-requests' | 'shared-with-me';
 
 const SimpleDashboard: React.FC<SimpleDashboardProps> = ({ user, onLogout }) => {
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
+  const [shareRequestType, setShareRequestType] = useState<'received' | 'sent'>('received');
   const [authServiceStatus, setAuthServiceStatus] = useState<string>('확인 중...');
   const [imageServiceStatus, setImageServiceStatus] = useState<string>('확인 중...');
   const [shareServiceStatus, setShareServiceStatus] = useState<string>('확인 중...');
@@ -108,7 +111,8 @@ const SimpleDashboard: React.FC<SimpleDashboardProps> = ({ user, onLogout }) => 
               { id: 'dashboard' as ActiveTab, label: '대시보드', icon: '📊' },
               { id: 'gallery' as ActiveTab, label: '내 이미지', icon: '🖼️' },
               { id: 'upload' as ActiveTab, label: '업로드', icon: '📤' },
-              { id: 'shared' as ActiveTab, label: '공유된 이미지', icon: '🔗' }
+              { id: 'share-requests' as ActiveTab, label: '공유 요청', icon: '📋' },
+              { id: 'shared-with-me' as ActiveTab, label: '공유받은 이미지', icon: '🔗' }
             ].map(tab => (
               <button
                 key={tab.id}
@@ -263,7 +267,7 @@ const SimpleDashboard: React.FC<SimpleDashboardProps> = ({ user, onLogout }) => 
         
         {activeTab === 'upload' && (
           <ImageUpload 
-        onUploadSuccess={() => {
+            onUploadSuccess={() => {
               setActiveTab('gallery');
             }}
             onUploadError={(error) => {
@@ -272,8 +276,38 @@ const SimpleDashboard: React.FC<SimpleDashboardProps> = ({ user, onLogout }) => 
           />
         )}
         
-        {activeTab === 'shared' && (
-          <ImageGallery showSharedImages={true} />
+        {activeTab === 'share-requests' && (
+          <>
+            <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem' }}>
+              <button
+                onClick={() => setShareRequestType('received')}
+                className="btn"
+                style={{ 
+                  backgroundColor: shareRequestType === 'received' ? '#3b82f6' : 'white',
+                  color: shareRequestType === 'received' ? 'white' : '#374151',
+                  border: shareRequestType === 'received' ? 'none' : '1px solid #d1d5db'
+                }}
+              >
+                받은 요청
+              </button>
+              <button
+                onClick={() => setShareRequestType('sent')}
+                className="btn"
+                style={{ 
+                  backgroundColor: shareRequestType === 'sent' ? '#3b82f6' : 'white',
+                  color: shareRequestType === 'sent' ? 'white' : '#374151',
+                  border: shareRequestType === 'sent' ? 'none' : '1px solid #d1d5db'
+                }}
+              >
+                보낸 요청
+              </button>
+            </div>
+            <ShareManagement type={shareRequestType} />
+          </>
+        )}
+        
+        {activeTab === 'shared-with-me' && (
+          <SharedImageGallery />
         )}
       </main>
     </div>

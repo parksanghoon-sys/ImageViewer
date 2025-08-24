@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import BlurredImage from './BlurredImage';
+import ShareImageModal from './ShareImageModal';
 
 interface Image {
   id: string;
@@ -37,6 +38,9 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({ userId, showSharedImages = 
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedImage, setSelectedImage] = useState<Image | null>(null);
+  const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [shareImageId, setShareImageId] = useState<string>('');
+  const [shareImageTitle, setShareImageTitle] = useState<string>('');
   const [userSettings, setUserSettings] = useState<UserSettings>({
     previewCount: 12,
     previewSize: 200,
@@ -112,6 +116,18 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({ userId, showSharedImages = 
 
   const closeImageModal = () => {
     setSelectedImage(null);
+  };
+
+  const openShareModal = (imageId: string, imageTitle: string) => {
+    setShareImageId(imageId);
+    setShareImageTitle(imageTitle);
+    setShareModalOpen(true);
+  };
+
+  const closeShareModal = () => {
+    setShareModalOpen(false);
+    setShareImageId('');
+    setShareImageTitle('');
   };
 
   const formatFileSize = (bytes: number) => {
@@ -306,9 +322,31 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({ userId, showSharedImages = 
                     <p style={{ margin: 0, fontSize: '0.875rem', color: '#6b7280', marginBottom: '0.5rem' }}>
                       {image.description || '설명 없음'}
                     </p>
-                    <div style={{ fontSize: '0.75rem', color: '#9ca3af' }}>
+                    <div style={{ fontSize: '0.75rem', color: '#9ca3af', marginBottom: '0.75rem' }}>
                       {new Date(image.uploadedAt).toLocaleDateString('ko-KR')} • {formatFileSize(image.fileSize)}
                     </div>
+                    {!showSharedImages && (
+                      <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openShareModal(image.id, image.title);
+                          }}
+                          className="btn"
+                          style={{
+                            fontSize: '0.75rem',
+                            padding: '0.25rem 0.5rem',
+                            backgroundColor: '#3b82f6',
+                            color: 'white',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.25rem'
+                          }}
+                        >
+                          🔗 공유
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
@@ -343,13 +381,31 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({ userId, showSharedImages = 
                         {new Date(image.uploadedAt).toLocaleDateString('ko-KR')} • {formatFileSize(image.fileSize)}
                       </div>
                     </div>
-                    <button 
-                      onClick={() => openImageModal(image)}
-                      className="btn btn-primary"
-                      style={{ padding: '0.5rem 1rem' }}
-                    >
-                      보기
-                    </button>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <button 
+                        onClick={() => openImageModal(image)}
+                        className="btn btn-primary"
+                        style={{ padding: '0.5rem 1rem' }}
+                      >
+                        보기
+                      </button>
+                      {!showSharedImages && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openShareModal(image.id, image.title);
+                          }}
+                          className="btn"
+                          style={{
+                            padding: '0.5rem 1rem',
+                            backgroundColor: '#3b82f6',
+                            color: 'white'
+                          }}
+                        >
+                          공유
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}
@@ -500,6 +556,18 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({ userId, showSharedImages = 
           </div>
         </div>
       )}
+
+      {/* Share Modal */}
+      <ShareImageModal
+        imageId={shareImageId}
+        imageTitle={shareImageTitle}
+        isOpen={shareModalOpen}
+        onClose={closeShareModal}
+        onShareSuccess={() => {
+          closeShareModal();
+          // Optionally reload images or show success message
+        }}
+      />
     </div>
   );
 };
