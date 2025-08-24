@@ -46,7 +46,10 @@
       "Bash(Stop-Process -Id 34904 -Force)",
       "Bash(powershell Stop-Process:*)",
       "Bash(start http://localhost:3000)",
-      "Bash(echo:*)"
+      "Bash(echo:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git rm:*)"
     ],
     "deny": [],
     "ask": [],
