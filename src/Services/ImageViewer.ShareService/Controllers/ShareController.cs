@@ -1,4 +1,6 @@
+using ImageViewer.Application.Services;
 using ImageViewer.Contracts.Common;
+using ImageViewer.Contracts.Events;
 using ImageViewer.Domain.Entities;
 using ImageViewer.Domain.Enums;
 using ImageViewer.Infrastructure.Data;
@@ -20,16 +22,22 @@ public class ShareController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
     private readonly ILogger<ShareController> _logger;
+    private readonly IMessageBusService _messageBus;
 
     /// <summary>
     /// ShareController 생성자
     /// </summary>
     /// <param name="context">데이터베이스 컨텍스트</param>
     /// <param name="logger">로거</param>
-    public ShareController(ApplicationDbContext context, ILogger<ShareController> logger)
+    /// <param name="messageBus">메시지 버스 서비스</param>
+    public ShareController(
+        ApplicationDbContext context, 
+        ILogger<ShareController> logger,
+        IMessageBusService messageBus)
     {
         _context = context ?? throw new ArgumentNullException(nameof(context));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _messageBus = messageBus ?? throw new ArgumentNullException(nameof(messageBus));
     }
 
     /// <summary>
@@ -115,7 +123,27 @@ public class ShareController : ControllerBase
             _context.ShareRequests.Add(shareRequest);
             await _context.SaveChangesAsync();
 
-            // TODO: RabbitMQ를 통한 알림 발송
+            // RabbitMQ를 통한 공유 요청 생성 이벤트 발행
+            try
+            {
+                var shareRequestEvent = new ShareRequestCreatedEvent
+                {
+                    ShareRequestId = shareRequest.Id,
+                    ImageId = shareRequest.ImageId,
+                    ImageFileName = image.OriginalFileName,
+                    RequesterId = userId,
+                    TargetUserId = targetUserId,
+                    RequestMessage = message,
+                    RequestedAt = shareRequest.CreatedAt
+                };
+
+                await _messageBus.PublishAsync(shareRequestEvent);
+                _logger.LogDebug("공유 요청 생성 이벤트 발행: {ShareRequestId}", shareRequest.Id);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "공유 요청 생성 이벤트 발행 실패: {ShareRequestId}", shareRequest.Id);
+            }
 
             _logger.LogInformation("공유 요청 생성: {ShareRequestId}, 요청자: {RequesterId}, 대상: {TargetId}", 
                 shareRequest.Id, userId, targetUserId);
@@ -295,7 +323,27 @@ public class ShareController : ControllerBase
             shareRequest.Approve();
             await _context.SaveChangesAsync();
 
-            // TODO: RabbitMQ를 통한 승인 알림 발송
+            // RabbitMQ를 통한 공유 승인 이벤트 발행
+            try
+            {
+                var shareApprovedEvent = new ShareRequestApprovedEvent
+                {
+                    ShareRequestId = shareRequest.Id,
+                    ImageId = shareRequest.ImageId,
+                    ImageFileName = shareRequest.Image.OriginalFileName,
+                    RequesterId = shareRequest.RequesterId,
+                    OwnerId = userId,
+                    ApprovedAt = shareRequest.RespondedAt ?? DateTime.UtcNow,
+                    OriginalMessage = shareRequest.RequestMessage
+                };
+
+                await _messageBus.PublishAsync(shareApprovedEvent);
+                _logger.LogDebug("공유 승인 이벤트 발행: {ShareRequestId}", shareRequest.Id);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "공유 승인 이벤트 발행 실패: {ShareRequestId}", shareRequest.Id);
+            }
 
             _logger.LogInformation("공유 요청 승인: {ShareRequestId}, 대상 사용자: {UserId}", 
                 shareRequestId, userId);

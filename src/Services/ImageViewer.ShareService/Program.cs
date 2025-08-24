@@ -1,6 +1,8 @@
+using ImageViewer.Application.Services;
 using ImageViewer.Infrastructure.Data;
 using ImageViewer.Infrastructure.Extensions;
 using ImageViewer.Infrastructure.Configuration;
+using ImageViewer.Infrastructure.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -58,6 +60,9 @@ builder.Services.AddCors(options =>
               .AllowCredentials();
     });
 });
+
+// 서비스 등록
+builder.Services.AddSingleton<IMessageBusService, RabbitMQMessageBusService>();
 
 // 컨트롤러 및 API 탐색기 설정
 builder.Services.AddControllers();
