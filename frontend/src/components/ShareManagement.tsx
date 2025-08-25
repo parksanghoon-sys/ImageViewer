@@ -65,7 +65,11 @@ const ShareManagement: React.FC<ShareManagementProps> = ({ type }) => {
   };
 
   const handleShareRequest = async (requestId: string, action: 'approve' | 'reject') => {
-    setProcessingIds(prev => new Set([...prev, requestId]));
+    setProcessingIds(prev => {
+      const newSet = new Set(prev);
+      newSet.add(requestId);
+      return newSet;
+    });
     
     try {
       const token = localStorage.getItem('accessToken');

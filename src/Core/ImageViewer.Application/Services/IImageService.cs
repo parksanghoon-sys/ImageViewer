@@ -67,4 +67,37 @@ public interface IImageService
     /// <param name="cancellationToken">작업 취소 토큰</param>
     /// <returns>공유된 이미지 목록</returns>
     Task<ImageListResponse> GetSharedImagesAsync(Guid userId, GetImagesRequest request, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 공개 사용자 목록 조회
+    /// </summary>
+    /// <param name="cancellationToken">작업 취소 토큰</param>
+    /// <returns>공개로 설정된 사용자들의 목록</returns>
+    Task<object> GetPublicUsersAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 특정 사용자의 공개 이미지 조회
+    /// </summary>
+    /// <param name="userId">사용자 ID</param>
+    /// <param name="request">조회 요청 정보</param>
+    /// <param name="cancellationToken">작업 취소 토큰</param>
+    /// <returns>해당 사용자의 공개 이미지 목록</returns>
+    Task<ImageListResponse> GetPublicUserImagesAsync(string userId, GetImagesRequest request, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 사용자 계정 공개 설정 변경
+    /// </summary>
+    /// <param name="userId">사용자 ID</param>
+    /// <param name="isPublic">공개 여부</param>
+    /// <param name="cancellationToken">작업 취소 토큰</param>
+    /// <returns>설정 변경 성공 여부</returns>
+    Task<bool> SetUserPublicAsync(string userId, bool isPublic, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 사용자 계정 공개 상태 조회
+    /// </summary>
+    /// <param name="userId">사용자 ID</param>
+    /// <param name="cancellationToken">작업 취소 토큰</param>
+    /// <returns>공개 여부</returns>
+    Task<bool> GetUserPublicStatusAsync(string userId, CancellationToken cancellationToken = default);
 }

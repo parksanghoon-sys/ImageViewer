@@ -3,6 +3,8 @@ using ImageViewer.Infrastructure.Data;
 using ImageViewer.Infrastructure.Extensions;
 using ImageViewer.Infrastructure.Configuration;
 using ImageViewer.Infrastructure.Services;
+using ImageViewer.Infrastructure.MessageBus;
+using ImageViewer.Infrastructure.BackgroundServices;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -62,8 +64,11 @@ builder.Services.AddCors(options =>
 });
 
 // 서비스 등록
-builder.Services.AddScoped<IImageService, ImageService>();
-builder.Services.AddSingleton<IMessageBusService, RabbitMQMessageBusService>();
+builder.Services.AddScoped<IImageService, ImageViewer.Infrastructure.Services.ImageService>();
+builder.Services.AddSingleton<IRabbitMQService, RabbitMQService>();
+
+// 백그라운드 서비스 등록
+builder.Services.AddHostedService<ThumbnailGenerationService>();
 
 // 컨트롤러 및 API 탐색기 설정
 builder.Services.AddControllers();
@@ -76,6 +81,21 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 var app = builder.Build();
+
+// RabbitMQ 서비스 초기화
+using (var scope = app.Services.CreateScope())
+{
+    var rabbitMQService = scope.ServiceProvider.GetRequiredService<IRabbitMQService>();
+    try
+    {
+        await rabbitMQService.InitializeAsync();
+        app.Logger.LogInformation("RabbitMQ 서비스가 성공적으로 초기화되었습니다.");
+    }
+    catch (Exception ex)
+    {
+        app.Logger.LogError(ex, "RabbitMQ 서비스 초기화에 실패했습니다. 서비스는 계속 실행되지만 이벤트 발행이 작동하지 않을 수 있습니다.");
+    }
+}
 
 // HTTP 요청 파이프라인 구성
 if (app.Environment.IsDevelopment())
@@ -93,6 +113,9 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+// Static files 미들웨어 (이미지 파일 서빙을 위해)
+app.UseStaticFiles();
 
 // CORS 미들웨어 (인증 전에 위치해야 함)
 app.UseCors("AllowReactApp");

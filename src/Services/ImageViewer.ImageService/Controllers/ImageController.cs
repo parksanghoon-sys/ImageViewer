@@ -330,6 +330,97 @@ public class ImageController : ControllerBase
     }
 
     /// <summary>
+    /// 공개 사용자 목록 조회
+    /// </summary>
+    /// <returns>공개로 설정된 사용자들의 목록</returns>
+    [HttpGet("public-users")]
+    public async Task<IActionResult> GetPublicUsers()
+    {
+        try
+        {
+            var result = await _imageService.GetPublicUsersAsync();
+            return Ok(ApiResponse<object>.SuccessResponse(result));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "공개 사용자 목록 조회 중 오류 발생");
+            return StatusCode(500, ApiResponse<object>.ErrorResponse("공개 사용자 목록 조회 중 오류가 발생했습니다."));
+        }
+    }
+
+    /// <summary>
+    /// 특정 사용자의 공개 이미지 조회
+    /// </summary>
+    /// <param name="userId">사용자 ID</param>
+    /// <param name="request">조회 요청 파라미터</param>
+    /// <returns>해당 사용자의 공개 이미지 목록</returns>
+    [HttpGet("user/{userId}/images")]
+    public async Task<IActionResult> GetUserImages(string userId, [FromQuery] GetImagesRequest request)
+    {
+        try
+        {
+            var result = await _imageService.GetPublicUserImagesAsync(userId, request);
+            return Ok(ApiResponse<ImageListResponse>.SuccessResponse(result));
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger.LogWarning(ex, "비공개 사용자 이미지 접근 시도: {UserId}", userId);
+            return StatusCode(403, ApiResponse<object>.ErrorResponse("해당 사용자의 이미지에 접근할 권한이 없습니다."));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "사용자 이미지 조회 중 오류 발생: {UserId}", userId);
+            return StatusCode(500, ApiResponse<object>.ErrorResponse("사용자 이미지 조회 중 오류가 발생했습니다."));
+        }
+    }
+
+    /// <summary>
+    /// 내 계정 공개/비공개 설정 변경
+    /// </summary>
+    /// <param name="isPublic">공개 여부</param>
+    /// <returns>변경 결과</returns>
+    [HttpPost("my-account/set-public")]
+    public async Task<IActionResult> SetMyAccountPublic([FromBody] bool isPublic)
+    {
+        try
+        {
+            var userId = GetCurrentUserId();
+            await _imageService.SetUserPublicAsync(userId, isPublic);
+            
+            return Ok(ApiResponse<object>.SuccessResponse(new { 
+                message = isPublic ? "계정이 공개로 설정되었습니다." : "계정이 비공개로 설정되었습니다.",
+                isPublic = isPublic 
+            }));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "계정 공개 설정 변경 중 오류 발생: {UserId}", GetCurrentUserId());
+            return StatusCode(500, ApiResponse<object>.ErrorResponse("계정 설정 변경 중 오류가 발생했습니다."));
+        }
+    }
+
+    /// <summary>
+    /// 내 계정 공개 설정 조회
+    /// </summary>
+    /// <returns>현재 공개 설정</returns>
+    [HttpGet("my-account/public-status")]
+    public async Task<IActionResult> GetMyPublicStatus()
+    {
+        try
+        {
+            var userId = GetCurrentUserId();
+            var isPublic = await _imageService.GetUserPublicStatusAsync(userId);
+            
+            return Ok(ApiResponse<object>.SuccessResponse(new { isPublic = isPublic }));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "계정 공개 설정 조회 중 오류 발생: {UserId}", GetCurrentUserId());
+            return StatusCode(500, ApiResponse<object>.ErrorResponse("계정 설정 조회 중 오류가 발생했습니다."));
+        }
+    }
+
+    /// <summary>
     /// 헬스체크 엔드포인트
     /// </summary>
     /// <returns>서비스 상태</returns>

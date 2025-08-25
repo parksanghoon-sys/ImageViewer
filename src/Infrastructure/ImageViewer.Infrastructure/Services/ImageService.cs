@@ -1,5 +1,8 @@
+using ImageViewer.Application.Services;
 using ImageViewer.Contracts.Images;
+using ImageViewer.Contracts.Events;
 using ImageViewer.Infrastructure.Data;
+using ImageViewer.Infrastructure.MessageBus;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SixLabors.ImageSharp;
@@ -8,7 +11,7 @@ using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
 
 
-namespace ImageViewer.Application.Services;
+namespace ImageViewer.Infrastructure.Services;
 
 /// <summary>
 /// 이미지 관리 서비스 구현체
@@ -18,6 +21,7 @@ public class ImageService : IImageService
 {
     private readonly ApplicationDbContext _context;
     private readonly ILogger<ImageService> _logger;
+    private readonly IRabbitMQService _rabbitMQService;
     private readonly string _uploadPath;
     private readonly string _thumbnailPath;
     private readonly long _maxFileSize = 10 * 1024 * 1024; // 10MB
@@ -25,10 +29,11 @@ public class ImageService : IImageService
     private readonly int _thumbnailWidth = 300;
     private readonly int _thumbnailHeight = 300;
 
-    public ImageService(ApplicationDbContext context, ILogger<ImageService> logger)
+    public ImageService(ApplicationDbContext context, ILogger<ImageService> logger, IRabbitMQService rabbitMQService)
     {
         _context = context;
         _logger = logger;
+        _rabbitMQService = rabbitMQService;
         
         // 업로드 경로 설정 (실제 환경에서는 appsettings.json에서 가져와야 함)
         _uploadPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "images");
@@ -89,8 +94,32 @@ public class ImageService : IImageService
         _context.Images.Add(image);
         await _context.SaveChangesAsync(cancellationToken);
 
-        // 7. 썸네일 생성 (비동기)
-        _ = Task.Run(async () => await GenerateThumbnailAsync(image.Id, filePath), cancellationToken);
+        // 7. 이미지 업로드 이벤트 발행 (RabbitMQ)
+        var uploadedEvent = new ImageUploadedEvent
+        {
+            ImageId = image.Id,
+            UserId = request.UserId,
+            OriginalFileName = request.File.FileName,
+            FilePath = GetRelativePath(filePath),
+            FileSize = request.File.Length,
+            MimeType = request.File.ContentType,
+            Width = width,
+            Height = height
+        };
+
+        // 비동기로 이벤트 발행 (실패해도 업로드 자체는 성공으로 처리)
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await _rabbitMQService.PublishEventAsync(uploadedEvent, "image.uploaded");
+                _logger.LogInformation("이미지 업로드 이벤트 발행 완료: ImageId={ImageId}", image.Id);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "이미지 업로드 이벤트 발행 실패: ImageId={ImageId}", image.Id);
+            }
+        }, cancellationToken);
 
         _logger.LogInformation("이미지 업로드 완료: ID={ImageId}, UserId={UserId}", image.Id, request.UserId);
 
@@ -295,7 +324,9 @@ public class ImageService : IImageService
     private string GetRelativePath(string fullPath)
     {
         var webRoot = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
-        return fullPath.Replace(webRoot, "").Replace("\\", "/");
+        var relativePath = fullPath.Replace(webRoot, "").Replace("\\", "/");
+        // URL은 /으로 시작해야 함
+        return relativePath.StartsWith("/") ? relativePath : "/" + relativePath;
     }
 
     /// <summary>
@@ -425,12 +456,12 @@ public class ImageService : IImageService
             ContentType = image.MimeType,
             Width = image.Width,
             Height = image.Height,
-            ImageUrl = $"/uploads{image.FilePath}",
-            ThumbnailUrl = string.IsNullOrEmpty(image.ThumbnailPath) ? null : $"/uploads{image.ThumbnailPath}",
+            ImageUrl = image.FilePath,
+            ThumbnailUrl = string.IsNullOrEmpty(image.ThumbnailPath) ? null : image.ThumbnailPath,
             IsPublic = image.IsPublic,
             Tags = string.IsNullOrEmpty(image.Tags) ? new List<string>() : image.Tags.Split(',').Select(t => t.Trim()).ToList(),
             UserId = image.UserId,
-            UserName = currentUserId,
+            UserName = "Unknown User",
             UploadedAt = image.UploadedAt,
             ThumbnailReady = image.ThumbnailReady,
             IsOwner = string.Equals(currentUserId, image.UserId, StringComparison.OrdinalIgnoreCase)
@@ -479,6 +510,38 @@ public class ImageService : IImageService
                         request.IsPublic.HasValue ||
                         request.ThumbnailReady.HasValue
         };
+    }
+
+    /// <inheritdoc />
+    public async Task<object> GetPublicUsersAsync(CancellationToken cancellationToken = default)
+    {
+        // TODO: 실제 구현 - 공개 사용자 목록 조회 (AuthService와 연동 필요)
+        _logger.LogInformation("공개 사용자 목록 조회 - 임시 구현");
+        return new List<object>();
+    }
+
+    /// <inheritdoc />
+    public async Task<ImageListResponse> GetPublicUserImagesAsync(string userId, GetImagesRequest request, CancellationToken cancellationToken = default)
+    {
+        // TODO: 실제 구현 - 공개 사용자의 이미지 조회 (AuthService와 연동 필요)
+        _logger.LogInformation("공개 사용자 이미지 조회 - 임시 구현");
+        return new ImageListResponse();
+    }
+
+    /// <inheritdoc />
+    public async Task<bool> SetUserPublicAsync(string userId, bool isPublic, CancellationToken cancellationToken = default)
+    {
+        // TODO: 실제 구현 - AuthService와 연동하여 사용자 공개 설정 변경
+        _logger.LogInformation("사용자 공개 설정 변경 - 임시 구현");
+        return true;
+    }
+
+    /// <inheritdoc />
+    public async Task<bool> GetUserPublicStatusAsync(string userId, CancellationToken cancellationToken = default)
+    {
+        // TODO: 실제 구현 - AuthService와 연동하여 사용자 공개 상태 조회
+        _logger.LogDebug("사용자 공개 상태 조회 - 임시 구현");
+        return false;
     }
 
     #endregion

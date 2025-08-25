@@ -42,6 +42,11 @@ public class User : BaseEntity
     public bool IsActive { get; private set; } = true;
 
     /// <summary>
+    /// 계정 공개 여부 (true: 누구나 이 사용자의 이미지를 볼 수 있음, false: 비공개)
+    /// </summary>
+    public bool IsPublic { get; private set; } = false;
+
+    /// <summary>
     /// 마지막 로그인 시간
     /// </summary>
     public DateTime? LastLoginAt { get; private set; }
@@ -186,5 +191,42 @@ public class User : BaseEntity
     public void UpdateLastLogin()
     {
         RecordLogin();
+    }
+
+    /// <summary>
+    /// 계정을 공개로 설정
+    /// </summary>
+    public void MakePublic()
+    {
+        IsPublic = true;
+        MarkAsModified();
+    }
+
+    /// <summary>
+    /// 계정을 비공개로 설정
+    /// </summary>
+    public void MakePrivate()
+    {
+        IsPublic = false;
+        MarkAsModified();
+    }
+
+    /// <summary>
+    /// 계정 공개 설정 토글
+    /// </summary>
+    public void TogglePublic()
+    {
+        IsPublic = !IsPublic;
+        MarkAsModified();
+    }
+
+    /// <summary>
+    /// 계정 공개 설정 변경
+    /// </summary>
+    /// <param name="isPublic">공개 여부</param>
+    public void SetPublic(bool isPublic)
+    {
+        IsPublic = isPublic;
+        MarkAsModified();
     }
 }
