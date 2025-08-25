@@ -262,7 +262,7 @@ const SimpleDashboard: React.FC<SimpleDashboardProps> = ({ user, onLogout }) => 
         )}
         
         {activeTab === 'gallery' && (
-          <ImageGallery />
+          <ImageGallery key={Date.now()} />
         )}
         
         {activeTab === 'upload' && (

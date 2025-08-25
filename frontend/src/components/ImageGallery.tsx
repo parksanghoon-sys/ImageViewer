@@ -3,17 +3,23 @@ import BlurredImage from './BlurredImage';
 import ShareImageModal from './ShareImageModal';
 
 interface Image {
-  Id: string;
-  Title: string;
-  Description: string;
-  Tags: string[];
-  IsPublic: boolean;
-  ImageUrl: string;
-  ThumbnailUrl: string;
-  UploadedAt: string;
-  FileSize: number;
-  MimeType: string;
-  UserId: string;
+  id: string;
+  title: string;
+  description: string;
+  tags: string[];
+  isPublic: boolean;
+  imageUrl: string;
+  thumbnailUrl: string;
+  uploadedAt: string;
+  fileSize: number;
+  contentType: string;
+  userId: string;
+  width?: number;
+  height?: number;
+  fileName?: string;
+  userName?: string;
+  thumbnailReady?: boolean;
+  isOwner?: boolean;
 }
 
 interface UserSettings {
@@ -62,20 +68,24 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({ userId, showSharedImages = 
       const endpoint = showSharedImages 
         ? '/api/image/shared' 
         : userId 
-          ? `/api/image/user/${userId}` 
+          ? `/api/image/user/${userId}/images` 
           : '/api/image/my-images';
 
+      const headers: any = {};
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
       const response = await fetch(`http://localhost:5215${endpoint}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        headers
       });
 
       if (response.ok) {
         const result = await response.json();
-        setImages(result.data?.images || []);
+        console.log('API Response:', result); // 디버깅용
+        setImages(result.data?.images || result.data?.Images || []);
       } else {
-        setError('이미지를 불러오는데 실패했습니다.');
+        setError(`이미지를 불러오는데 실패했습니다. (${response.status})`);
       }
     } catch (err: any) {
       setError('네트워크 오류가 발생했습니다.');
@@ -101,9 +111,9 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({ userId, showSharedImages = 
   };
 
   const filteredImages = images.filter(image => 
-    image.Title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    image.Description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    image.Tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()))
+    image.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    image.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    image.tags?.some(tag => tag?.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   const totalPages = Math.ceil(filteredImages.length / imagesPerPage);
@@ -280,7 +290,7 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({ userId, showSharedImages = 
               marginBottom: '2rem'
             }}>
               {paginatedImages.map(image => (
-                <div key={image.Id} className="card" style={{ padding: 0, overflow: 'hidden', cursor: 'pointer' }}>
+                <div key={image.id} className="card" style={{ padding: 0, overflow: 'hidden', cursor: 'pointer' }}>
                   <div 
                     onClick={() => openImageModal(image)}
                     style={{
@@ -289,8 +299,8 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({ userId, showSharedImages = 
                     }}
                   >
                     <BlurredImage
-                      src={image.ThumbnailUrl || image.ImageUrl}
-                      alt={image.Title}
+                      src={image.thumbnailUrl || image.imageUrl}
+                      alt={image.title}
                       blurIntensity={userSettings.blurIntensity}
                       previewSize={userSettings.previewSize}
                       className="w-full"
@@ -317,20 +327,20 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({ userId, showSharedImages = 
                   </div>
                   <div style={{ padding: '1rem' }}>
                     <h4 style={{ margin: 0, marginBottom: '0.5rem', fontSize: '1rem', fontWeight: '500', color: '#1f2937' }}>
-                      {image.Title}
+                      {image.title}
                     </h4>
                     <p style={{ margin: 0, fontSize: '0.875rem', color: '#6b7280', marginBottom: '0.5rem' }}>
-                      {image.Description || '설명 없음'}
+                      {image.description || '설명 없음'}
                     </p>
                     <div style={{ fontSize: '0.75rem', color: '#9ca3af', marginBottom: '0.75rem' }}>
-                      {new Date(image.UploadedAt).toLocaleDateString('ko-KR')} • {formatFileSize(image.FileSize)}
+                      {new Date(image.uploadedAt).toLocaleDateString('ko-KR')} • {formatFileSize(image.fileSize)}
                     </div>
                     {!showSharedImages && (
                       <div style={{ display: 'flex', gap: '0.5rem' }}>
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            openShareModal(image.Id, image.Title);
+                            openShareModal(image.id, image.title);
                           }}
                           className="btn"
                           style={{
@@ -354,11 +364,11 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({ userId, showSharedImages = 
           ) : (
             <div style={{ marginBottom: '2rem' }}>
               {paginatedImages.map(image => (
-                <div key={image.Id} className="card" style={{ marginBottom: '1rem', padding: '1rem' }}>
+                <div key={image.id} className="card" style={{ marginBottom: '1rem', padding: '1rem' }}>
                   <div style={{ display: 'grid', gridTemplateColumns: '100px 1fr auto', gap: '1rem', alignItems: 'center' }}>
                     <BlurredImage
-                      src={image.ThumbnailUrl || image.ImageUrl}
-                      alt={image.Title}
+                      src={image.thumbnailUrl || image.imageUrl}
+                      alt={image.title}
                       blurIntensity={userSettings.blurIntensity}
                       previewSize={100}
                       style={{
@@ -372,13 +382,13 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({ userId, showSharedImages = 
                     />
                     <div>
                       <h4 style={{ margin: 0, marginBottom: '0.5rem', fontSize: '1.125rem', fontWeight: '500', color: '#1f2937' }}>
-                        {image.Title}
+                        {image.title}
                       </h4>
                       <p style={{ margin: 0, fontSize: '0.875rem', color: '#6b7280', marginBottom: '0.5rem' }}>
-                        {image.Description || '설명 없음'}
+                        {image.description || '설명 없음'}
                       </p>
                       <div style={{ fontSize: '0.75rem', color: '#9ca3af' }}>
-                        {new Date(image.UploadedAt).toLocaleDateString('ko-KR')} • {formatFileSize(image.FileSize)}
+                        {new Date(image.uploadedAt).toLocaleDateString('ko-KR')} • {formatFileSize(image.fileSize)}
                       </div>
                     </div>
                     <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -393,7 +403,7 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({ userId, showSharedImages = 
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            openShareModal(image.Id, image.Title);
+                            openShareModal(image.id, image.title);
                           }}
                           className="btn"
                           style={{
@@ -492,8 +502,8 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({ userId, showSharedImages = 
           >
             <div style={{ position: 'relative' }}>
               <img
-                src={selectedImage.ImageUrl}
-                alt={selectedImage.Title}
+                src={selectedImage.imageUrl}
+                alt={selectedImage.title}
                 style={{
                   maxWidth: '80vw',
                   maxHeight: '70vh',
@@ -521,19 +531,19 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({ userId, showSharedImages = 
             </div>
             <div style={{ padding: '1.5rem' }}>
               <h3 style={{ margin: 0, marginBottom: '0.5rem', fontSize: '1.25rem', fontWeight: '600', color: '#1f2937' }}>
-                {selectedImage.Title}
+                {selectedImage.title}
               </h3>
               <p style={{ margin: 0, marginBottom: '1rem', color: '#6b7280' }}>
-                {selectedImage.Description || '설명 없음'}
+                {selectedImage.description || '설명 없음'}
               </p>
               <div style={{ fontSize: '0.875rem', color: '#9ca3af' }}>
-                업로드: {new Date(selectedImage.UploadedAt).toLocaleString('ko-KR')} • 
-                크기: {formatFileSize(selectedImage.FileSize)} • 
-                형식: {selectedImage.MimeType}
+                업로드: {new Date(selectedImage.uploadedAt).toLocaleString('ko-KR')} • 
+                크기: {formatFileSize(selectedImage.fileSize)} • 
+                형식: {selectedImage.contentType}
               </div>
-              {selectedImage.Tags.length > 0 && (
+              {selectedImage.tags && selectedImage.tags.length > 0 && (
                 <div style={{ marginTop: '1rem' }}>
-                  {selectedImage.Tags.map(tag => (
+                  {selectedImage.tags.map(tag => (
                     <span 
                       key={tag}
                       style={{

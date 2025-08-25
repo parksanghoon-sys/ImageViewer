@@ -171,76 +171,11 @@ public class ImageController : ControllerBase
 
         try
         {
-            // 개발용 목 데이터 반환
-            var mockResult = new ImageListResponse
-            {
-                Images = new List<ImageResponse>
-                {
-                    new ImageResponse
-                    {
-                        Id = Guid.NewGuid(),
-                        Title = "샘플 이미지 1",
-                        Description = "개발용 테스트 이미지입니다.",
-                        Tags = new List<string> { "테스트", "샘플" },
-                        FileName = "sample1.jpg",
-                        FileSize = 1024000,
-                        ContentType = "image/jpeg",
-                        Width = 1920,
-                        Height = 1080,
-                        IsPublic = false,
-                        UploadedAt = DateTime.UtcNow.AddDays(-1),
-                        ThumbnailReady = true,
-                        ImageUrl = "http://localhost:5215/sample1.jpg",
-                        ThumbnailUrl = "http://localhost:5215/thumb_sample1.jpg",
-                        UserId = "11111111-1111-1111-1111-111111111111",
-                        UserName = "개발자",
-                        IsOwner = true
-                    },
-                    new ImageResponse
-                    {
-                        Id = Guid.NewGuid(),
-                        Title = "샘플 이미지 2",
-                        Description = "또 다른 개발용 테스트 이미지입니다.",
-                        Tags = new List<string> { "테스트", "개발" },
-                        FileName = "sample2.png",
-                        FileSize = 512000,
-                        ContentType = "image/png",
-                        Width = 1280,
-                        Height = 720,
-                        IsPublic = true,
-                        UploadedAt = DateTime.UtcNow.AddHours(-2),
-                        ThumbnailReady = true,
-                        ImageUrl = "http://localhost:5215/sample2.png",
-                        ThumbnailUrl = "http://localhost:5215/thumb_sample2.png",
-                        UserId = "11111111-1111-1111-1111-111111111111",
-                        UserName = "개발자",
-                        IsOwner = true
-                    }
-                },
-                Pagination = new PaginationInfo
-                {
-                    CurrentPage = request.Page,
-                    PageSize = request.PageSize,
-                    TotalItems = 2,
-                    TotalPages = 1,
-                    HasPreviousPage = false,
-                    HasNextPage = false,
-                    StartIndex = 1,
-                    EndIndex = 2
-                },
-                SearchSummary = new SearchSummary
-                {
-                    SearchKeyword = request.SearchKeyword,
-                    TagFilter = request.TagFilter,
-                    SortBy = request.SortBy.ToString(),
-                    SortOrder = request.SortOrder.ToString(),
-                    UnfilteredCount = 2,
-                    FilteredCount = 2,
-                    IsFiltered = false
-                }
-            };
+            // 개발용으로 실제 업로드된 이미지 데이터 반환
+            var userId = "11111111-1111-1111-1111-111111111111";
+            var result = await _imageService.GetUserImagesAsync(userId, request);
 
-            return Ok(ApiResponse<ImageListResponse>.SuccessResponse(mockResult));
+            return Ok(ApiResponse<ImageListResponse>.SuccessResponse(result));
         }
         catch (Exception ex)
         {

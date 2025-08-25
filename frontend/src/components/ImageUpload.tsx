@@ -94,11 +94,14 @@ const ImageUpload: React.FC<ImageUploadProps> = ({ onUploadSuccess, onUploadErro
       formData.append('isPublic', imageFile.isPublic.toString());
 
       const token = localStorage.getItem('accessToken');
+      const headers: any = {};
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
       const response = await fetch('http://localhost:5215/api/image/upload', {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
+        headers,
         body: formData
       });
 
@@ -107,7 +110,8 @@ const ImageUpload: React.FC<ImageUploadProps> = ({ onUploadSuccess, onUploadErro
         updateImageData(index, 'progress', 100);
         return result;
       } else {
-        throw new Error('업로드 실패');
+        const errorText = await response.text();
+        throw new Error(`업로드 실패 (${response.status}): ${errorText}`);
       }
     } catch (error: any) {
       updateImageData(index, 'error', error.message);
