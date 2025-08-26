@@ -15,7 +15,7 @@ const ShareImageModal: React.FC<ShareImageModalProps> = ({
   onClose,
   onShareSuccess
 }) => {
-  const [targetUserEmail, setTargetUserEmail] = useState('');
+  const [targetUserId, setTargetUserId] = useState('');
   const [message, setMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -23,8 +23,8 @@ const ShareImageModal: React.FC<ShareImageModalProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!targetUserEmail.trim()) {
-      setError('공유할 사용자의 이메일을 입력해주세요.');
+    if (!targetUserId.trim()) {
+      setError('공유할 사용자의 ID를 입력해주세요.');
       return;
     }
 
@@ -35,7 +35,7 @@ const ShareImageModal: React.FC<ShareImageModalProps> = ({
       const token = localStorage.getItem('accessToken');
       const formData = new FormData();
       formData.append('imageId', imageId);
-      formData.append('targetUserEmail', targetUserEmail.trim());
+      formData.append('targetUserId', targetUserId.trim());
       if (message.trim()) {
         formData.append('message', message.trim());
       }
@@ -52,7 +52,7 @@ const ShareImageModal: React.FC<ShareImageModalProps> = ({
 
       if (response.ok && result.success) {
         // 성공 시 모달 닫기 및 초기화
-        setTargetUserEmail('');
+        setTargetUserId('');
         setMessage('');
         onClose();
         
@@ -74,7 +74,7 @@ const ShareImageModal: React.FC<ShareImageModalProps> = ({
 
   const handleClose = () => {
     if (!isSubmitting) {
-      setTargetUserEmail('');
+      setTargetUserId('');
       setMessage('');
       setError('');
       onClose();
@@ -151,7 +151,7 @@ const ShareImageModal: React.FC<ShareImageModalProps> = ({
 
         {/* Form */}
         <form onSubmit={handleSubmit} style={{ padding: '1.5rem' }}>
-          {/* Target User Email */}
+          {/* Target User ID */}
           <div style={{ marginBottom: '1rem' }}>
             <label style={{ 
               display: 'block', 
@@ -160,18 +160,25 @@ const ShareImageModal: React.FC<ShareImageModalProps> = ({
               fontWeight: '500', 
               color: '#374151' 
             }}>
-              공유할 사용자 이메일 *
+              공유할 사용자 ID *
             </label>
             <input
-              type="email"
+              type="text"
               className="input"
-              value={targetUserEmail}
-              onChange={(e) => setTargetUserEmail(e.target.value)}
-              placeholder="example@email.com"
+              value={targetUserId}
+              onChange={(e) => setTargetUserId(e.target.value)}
+              placeholder="예: 22222222-2222-2222-2222-222222222222"
               disabled={isSubmitting}
               style={{ width: '100%' }}
               required
             />
+            <div style={{ 
+              fontSize: '0.75rem', 
+              color: '#9ca3af',
+              marginTop: '0.25rem'
+            }}>
+              💡 테스트용으로 "22222222-2222-2222-2222-222222222222" 사용 가능
+            </div>
           </div>
 
           {/* Message */}
@@ -238,11 +245,11 @@ const ShareImageModal: React.FC<ShareImageModalProps> = ({
             </button>
             <button
               type="submit"
-              disabled={isSubmitting || !targetUserEmail.trim()}
+              disabled={isSubmitting || !targetUserId.trim()}
               className="btn btn-primary"
               style={{ 
                 padding: '0.75rem 1.5rem',
-                opacity: isSubmitting || !targetUserEmail.trim() ? 0.5 : 1
+                opacity: isSubmitting || !targetUserId.trim() ? 0.5 : 1
               }}
             >
               {isSubmitting ? '전송 중...' : '공유 요청'}
