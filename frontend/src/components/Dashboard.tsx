@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { authService } from '../services/api';
+import NotificationBell from './NotificationBell';
 
 interface User {
   id: string;
@@ -19,15 +20,16 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
   const [authServiceStatus, setAuthServiceStatus] = useState<string>('확인 중...');
   const [imageServiceStatus, setImageServiceStatus] = useState<string>('서비스 없음');
   const [shareServiceStatus, setShareServiceStatus] = useState<string>('서비스 없음');
+  
 
   useEffect(() => {
     checkServiceStatus();
   }, []);
 
   const checkServiceStatus = async () => {
-    // Check AuthService
+    // Check AuthService by trying to get users
     try {
-      await authService.health();
+      await authService.getUsers();
       setAuthServiceStatus('정상 작동');
     } catch (error) {
       setAuthServiceStatus('오프라인');
@@ -47,6 +49,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
     onLogout();
   };
 
+
   return (
     <div className="min-h-screen bg-gray-50">
       <nav className="bg-white shadow">
@@ -56,6 +59,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
               <h1 className="text-xl font-semibold text-gray-900">ImageViewer</h1>
             </div>
             <div className="flex items-center space-x-4">
+              <NotificationBell />
               <span className="text-sm text-gray-500">
                 {user.username} ({user.email})
               </span>

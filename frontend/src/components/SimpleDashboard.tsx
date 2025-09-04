@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import NotificationBell from './NotificationBell';
 import ImageUpload from './ImageUpload';
 import ImageGallery from './ImageGallery';
 import ShareManagement from './ShareManagement';
 import SharedImageGallery from './SharedImageGallery';
+import AdminDashboard from './AdminDashboard';
 
 interface User {
   id: string;
@@ -18,56 +20,14 @@ interface SimpleDashboardProps {
   onLogout: () => void;
 }
 
-type ActiveTab = 'dashboard' | 'gallery' | 'upload' | 'shared' | 'share-requests' | 'shared-with-me';
+type ActiveTab = 'dashboard' | 'gallery' | 'upload' | 'shared' | 'share-requests' | 'shared-with-me' | 'admin';
 
 const SimpleDashboard: React.FC<SimpleDashboardProps> = ({ user, onLogout }) => {
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
   const [shareRequestType, setShareRequestType] = useState<'received' | 'sent'>('received');
-  const [authServiceStatus, setAuthServiceStatus] = useState<string>('확인 중...');
-  const [imageServiceStatus, setImageServiceStatus] = useState<string>('확인 중...');
-  const [shareServiceStatus, setShareServiceStatus] = useState<string>('확인 중...');
-
-  useEffect(() => {
-    checkServices();
-  }, []);
-
-  const checkServices = async () => {
-    // Check AuthService
-    try {
-      const response = await fetch('http://localhost:5294/health');
-      if (response.ok) {
-        setAuthServiceStatus('정상 작동');
-      } else {
-        setAuthServiceStatus('오프라인');
-      }
-    } catch (error) {
-      setAuthServiceStatus('오프라인');
-    }
-
-    // Check ImageService
-    try {
-      const response = await fetch('http://localhost:5215/api/image/health');
-      if (response.ok) {
-        setImageServiceStatus('정상 작동');
-      } else {
-        setImageServiceStatus('오프라인');
-      }
-    } catch (error) {
-      setImageServiceStatus('오프라인');
-    }
-
-    // Check ShareService
-    try {
-      const response = await fetch('http://localhost:5125/api/share/health');
-      if (response.ok) {
-        setShareServiceStatus('정상 작동');
-      } else {
-        setShareServiceStatus('오프라인');
-      }
-    } catch (error) {
-      setShareServiceStatus('오프라인');
-    }
-  };
+  
+  // Admin 권한 체크 (role이 2이면 Admin)
+  const isAdmin = user.role === 2;
 
   const handleLogout = () => {
     localStorage.removeItem('accessToken');
@@ -87,15 +47,28 @@ const SimpleDashboard: React.FC<SimpleDashboardProps> = ({ user, onLogout }) => 
         <div className="container" style={{ 
           display: 'flex', 
           justifyContent: 'space-between', 
-          alignItems: 'center' 
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '1rem'
         }}>
           <h1 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 'bold', color: '#1f2937' }}>
             ImageViewer
           </h1>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <span style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+          
+          {/* Desktop Navigation */}
+          <div className="desktop-nav" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <NotificationBell />
+            <span className="user-info" style={{ fontSize: '0.875rem', color: '#6b7280' }}>
               {user.username} ({user.email})
             </span>
+            <button onClick={handleLogout} className="btn btn-danger">
+              로그아웃
+            </button>
+          </div>
+          
+          {/* Mobile Navigation Toggle */}
+          <div className="mobile-nav" style={{ display: 'none' }}>
+            <NotificationBell />
             <button onClick={handleLogout} className="btn btn-danger">
               로그아웃
             </button>
@@ -106,17 +79,26 @@ const SimpleDashboard: React.FC<SimpleDashboardProps> = ({ user, onLogout }) => 
       {/* Tab Navigation */}
       <nav style={{ backgroundColor: 'white', borderBottom: '1px solid #e5e7eb' }}>
         <div className="container">
-          <div style={{ display: 'flex', gap: '0' }}>
+          <div className="tab-navigation" style={{ 
+            display: 'flex', 
+            gap: '0',
+            overflowX: 'auto',
+            WebkitOverflowScrolling: 'touch',
+            scrollbarWidth: 'none',
+            msOverflowStyle: 'none'
+          }}>
             {[
-              { id: 'dashboard' as ActiveTab, label: '대시보드', icon: '📊' },
-              { id: 'gallery' as ActiveTab, label: '내 이미지', icon: '🖼️' },
-              { id: 'upload' as ActiveTab, label: '업로드', icon: '📤' },
-              { id: 'share-requests' as ActiveTab, label: '공유 요청', icon: '📋' },
-              { id: 'shared-with-me' as ActiveTab, label: '공유받은 이미지', icon: '🔗' }
+              { id: 'dashboard' as ActiveTab, label: '대시보드', icon: '📊', shortLabel: '홈' },
+              { id: 'gallery' as ActiveTab, label: '내 이미지', icon: '🖼️', shortLabel: '갤러리' },
+              { id: 'upload' as ActiveTab, label: '업로드', icon: '📤', shortLabel: '업로드' },
+              { id: 'share-requests' as ActiveTab, label: '공유 요청', icon: '📋', shortLabel: '공유' },
+              { id: 'shared-with-me' as ActiveTab, label: '공유받은 이미지', icon: '🔗', shortLabel: '수신함' },
+              ...(isAdmin ? [{ id: 'admin' as ActiveTab, label: '시스템 관리', icon: '⚙️', shortLabel: '관리' }] : [])
             ].map(tab => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
+                className="tab-button"
                 style={{
                   padding: '1rem 1.5rem',
                   border: 'none',
@@ -128,11 +110,14 @@ const SimpleDashboard: React.FC<SimpleDashboardProps> = ({ user, onLogout }) => 
                   fontSize: '0.875rem',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '0.5rem'
+                  gap: '0.5rem',
+                  flexShrink: 0,
+                  minWidth: 'auto'
                 }}
               >
                 <span style={{ fontSize: '1rem' }}>{tab.icon}</span>
-                {tab.label}
+                <span className="tab-label">{tab.label}</span>
+                <span className="tab-short-label" style={{ display: 'none' }}>{tab.shortLabel}</span>
               </button>
             ))}
           </div>
@@ -143,62 +128,91 @@ const SimpleDashboard: React.FC<SimpleDashboardProps> = ({ user, onLogout }) => 
       <main className="container" style={{ paddingTop: '2rem' }}>
         {activeTab === 'dashboard' && (
           <>
-            {/* Service Status */}
-            <div className="card">
-              <h2 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '1.5rem', color: '#1f2937' }}>
-                서비스 상태
-              </h2>
-          
-          <div className="grid grid-3">
-            <div className="card">
-              <div style={{ display: 'flex', alignItems: 'center' }}>
-                <span className={`status-indicator ${
-                  authServiceStatus === '정상 작동' ? 'status-green' : 'status-red'
-                }`}></span>
-                <div>
-                  <div style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '0.25rem' }}>
-                    AuthService
+            {/* System Statistics */}
+            {user.role === 2 ? ( // Admin 계정일 때만 시스템 통계 표시
+              <div className="card">
+                <h2 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '1.5rem', color: '#1f2937' }}>
+                  시스템 통계
+                </h2>
+                <div className="grid grid-3">
+                  <div className="card">
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#3b82f6' }}>
+                        🏗️
+                      </div>
+                      <div style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '0.25rem' }}>
+                        마이크로서비스 아키텍처
+                      </div>
+                      <div style={{ fontSize: '1rem', fontWeight: '500', color: '#1f2937' }}>
+                        API Gateway 통합
+                      </div>
+                    </div>
                   </div>
-                  <div style={{ fontSize: '1rem', fontWeight: '500', color: '#1f2937' }}>
-                    {authServiceStatus}
-                  </div>
-                </div>
-              </div>
-            </div>
 
-            <div className="card">
-              <div style={{ display: 'flex', alignItems: 'center' }}>
-                <span className={`status-indicator ${
-                  imageServiceStatus === '정상 작동' ? 'status-green' : 'status-red'
-                }`}></span>
-                <div>
-                  <div style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '0.25rem' }}>
-                    ImageService
+                  <div className="card">
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#10b981' }}>
+                        🐰
+                      </div>
+                      <div style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '0.25rem' }}>
+                        메시지 큐
+                      </div>
+                      <div style={{ fontSize: '1rem', fontWeight: '500', color: '#1f2937' }}>
+                        RabbitMQ 연동
+                      </div>
+                    </div>
                   </div>
-                  <div style={{ fontSize: '1rem', fontWeight: '500', color: '#1f2937' }}>
-                    {imageServiceStatus}
-                  </div>
-                </div>
-              </div>
-            </div>
 
-            <div className="card">
-              <div style={{ display: 'flex', alignItems: 'center' }}>
-                <span className={`status-indicator ${
-                  shareServiceStatus === '정상 작동' ? 'status-green' : 'status-red'
-                }`}></span>
-                <div>
-                  <div style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '0.25rem' }}>
-                    ShareService
-                  </div>
-                  <div style={{ fontSize: '1rem', fontWeight: '500', color: '#1f2937' }}>
-                    {shareServiceStatus}
+                  <div className="card">
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#8b5cf6' }}>
+                        🐋
+                      </div>
+                      <div style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '0.25rem' }}>
+                        컨테이너화
+                      </div>
+                      <div style={{ fontSize: '1rem', fontWeight: '500', color: '#1f2937' }}>
+                        Docker 배포
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          </div>
-        </div>
+            ) : ( // 일반 사용자일 때는 간단한 환영 메시지
+              <div className="card">
+                <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '1rem', color: '#1f2937', textAlign: 'center' }}>
+                  환영합니다! 🎉
+                </h2>
+                <p style={{ fontSize: '1rem', color: '#6b7280', textAlign: 'center', marginBottom: '2rem' }}>
+                  ImageViewer에서 이미지를 안전하게 저장하고 공유해보세요.
+                </p>
+                <div className="grid grid-3">
+                  <div className="card" style={{ textAlign: 'center', cursor: 'pointer' }} 
+                       onClick={() => setActiveTab('upload')}>
+                    <div style={{ fontSize: '3rem', marginBottom: '0.5rem' }}>📤</div>
+                    <div style={{ fontSize: '1rem', fontWeight: '500', color: '#3b82f6' }}>
+                      이미지 업로드
+                    </div>
+                  </div>
+                  
+                  <div className="card" style={{ textAlign: 'center', cursor: 'pointer' }}
+                       onClick={() => setActiveTab('gallery')}>
+                    <div style={{ fontSize: '3rem', marginBottom: '0.5rem' }}>🖼️</div>
+                    <div style={{ fontSize: '1rem', fontWeight: '500', color: '#10b981' }}>
+                      내 이미지 보기
+                    </div>
+                  </div>
+                  
+                  <div className="card" style={{ textAlign: 'center', cursor: 'pointer' }}
+                       onClick={() => setActiveTab('share-requests')}>
+                    <div style={{ fontSize: '3rem', marginBottom: '0.5rem' }}>🔗</div>
+                    <div style={{ fontSize: '1rem', fontWeight: '500', color: '#f59e0b' }}>
+                      이미지 공유
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
         {/* User Info */}
         <div className="card">
@@ -308,6 +322,10 @@ const SimpleDashboard: React.FC<SimpleDashboardProps> = ({ user, onLogout }) => 
         
         {activeTab === 'shared-with-me' && (
           <SharedImageGallery />
+        )}
+
+        {activeTab === 'admin' && isAdmin && (
+          <AdminDashboard />
         )}
       </main>
     </div>

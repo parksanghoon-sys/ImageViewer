@@ -1,51 +1,163 @@
 version: '3.8'
 
 services:
-  # PostgreSQL 데이터베이스 서비스
+  # PostgreSQL Database
   postgres:
-    image: postgres:15
-    container_name: imageviewer_postgres
+    image: postgres:15-alpine
+    container_name: imageviewer-postgres
     environment:
-      POSTGRES_DB: ImageViewerDB
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: your_password_here
-      PGDATA: /var/lib/postgresql/data/pgdata
+      POSTGRES_DB: ${POSTGRES_DB:-ImageViewerDB}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password123}
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d ImageViewerDB"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+    networks:
+      - imageviewer-network
 
-  # RabbitMQ 메시지 브로커 (2주차에서 사용 예정)
+  # RabbitMQ Message Broker
   rabbitmq:
-    image: rabbitmq:3-management
-    container_name: imageviewer_rabbitmq
+    image: rabbitmq:3-management-alpine
+    container_name: imageviewer-rabbitmq
     environment:
-      RABBITMQ_DEFAULT_USER: rabbitmq
-      RABBITMQ_DEFAULT_PASS: rabbitmq123
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-guest}
     ports:
-      - "5672:5672"      # AMQP 포트
-      - "15672:15672"    # 관리 UI 포트
+      - "5672:5672"
+      - "15672:15672"
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+    networks:
+      - imageviewer-network
+
+  # API Gateway
+  api-gateway:
+    build:
+      context: .
+      dockerfile: src/Gateways/ImageViewer.ApiGateway/Dockerfile
+    container_name: imageviewer-gateway
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:5000
+      - Services__AuthService=http://auth-service:5001
+      - Services__ImageService=http://image-service:5002
+      - Services__ShareService=http://share-service:5003
+      - JWT__Secret=${JWT_SECRET:-SuperSecretKeyForDevelopment123!}
+    ports:
+      - "5000:5000"
+    depends_on:
+      - postgres
+      - rabbitmq
+    networks:
+      - imageviewer-network
+
+  # Auth Service
+  auth-service:
+    build:
+      context: .
+      dockerfile: src/Services/ImageViewer.AuthService/Dockerfile
+    container_name: imageviewer-auth
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:5001
+      - Database__Type=PostgreSQL
+      - Database__ConnectionStrings__PostgreSQL=Host=postgres;Port=5432;Database=${POSTGRES_DB:-ImageViewerDB};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-password123}
+      - RabbitMQ__Host=rabbitmq
+      - JWT__Secret=${JWT_SECRET:-SuperSecretKeyForDevelopment123!}
+    ports:
+      - "5001:5001"
+    depends_on:
+      - postgres
+      - rabbitmq
+    networks:
+      - imageviewer-network
+
+  # Image Service
+  image-service:
+    build:
+      context: .
+      dockerfile: src/Services/ImageViewer.ImageService/Dockerfile
+    container_name: imageviewer-image
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:5002
+      - Database__Type=PostgreSQL
+      - Database__ConnectionStrings__PostgreSQL=Host=postgres;Port=5432;Database=${POSTGRES_DB:-ImageViewerDB};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-password123}
+      - RabbitMQ__Host=rabbitmq
+      - JWT__Secret=${JWT_SECRET:-SuperSecretKeyForDevelopment123!}
+    volumes:
+      - image_uploads:/app/wwwroot/uploads
+      - image_thumbnails:/app/wwwroot/thumbnails
+    ports:
+      - "5002:5002"
+    depends_on:
+      - postgres
+      - rabbitmq
+    networks:
+      - imageviewer-network
+
+  # Share Service
+  share-service:
+    build:
+      context: .
+      dockerfile: src/Services/ImageViewer.ShareService/Dockerfile
+    container_name: imageviewer-share
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:5003
+      - Database__Type=PostgreSQL
+      - Database__ConnectionStrings__PostgreSQL=Host=postgres;Port=5432;Database=${POSTGRES_DB:-ImageViewerDB};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-password123}
+      - RabbitMQ__Host=rabbitmq
+      - JWT__Secret=${JWT_SECRET:-SuperSecretKeyForDevelopment123!}
+    ports:
+      - "5003:5003"
+    depends_on:
+      - postgres
+      - rabbitmq
+    networks:
+      - imageviewer-network
+
+  # Notification Service
+  notification-service:
+    build:
+      context: .
+      dockerfile: src/Services/ImageViewer.NotificationService/Dockerfile
+    container_name: imageviewer-notification
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:5004
+      - Database__Type=PostgreSQL
+      - Database__ConnectionStrings__PostgreSQL=Host=postgres;Port=5432;Database=${POSTGRES_DB:-ImageViewerDB};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-password123}
+      - RabbitMQ__Host=rabbitmq
+      - JWT__Secret=${JWT_SECRET:-SuperSecretKeyForDevelopment123!}
+    ports:
+      - "5004:5004"
+    depends_on:
+      - postgres
+      - rabbitmq
+    networks:
+      - imageviewer-network
+
+  # Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: imageviewer-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - api-gateway
+    networks:
+      - imageviewer-network
 
 volumes:
   postgres_data:
-    driver: local
   rabbitmq_data:
-    driver: local
+  image_uploads:
+  image_thumbnails:
 
 networks:
-  default:
-    name: imageviewer_network
+  imageviewer-network:
+    driver: bridge

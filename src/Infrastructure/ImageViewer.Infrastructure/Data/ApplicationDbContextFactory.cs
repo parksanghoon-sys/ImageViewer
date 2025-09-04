@@ -21,7 +21,7 @@ namespace ImageViewer.Infrastructure.Data
             
             // 개발환경용 PostgreSQL 연결 문자열
             // 실제 운영환경에서는 환경변수나 설정파일에서 가져와야 함
-            var connectionString = "Host=localhost;Port=5433;Database=ImageViewerDB;Username=postgres;Password=your_password_here";
+            var connectionString = "Server=192.168.20.52;Database=ImageViewerDB;Port=45432;User Id=postgres;Password=parktest1#;";
             
             optionsBuilder.UseNpgsql(connectionString, options =>
             {

@@ -53,7 +53,10 @@
       "Bash(start \"http://localhost:5215/uploads/images/4fa222fd-f211-45bd-9426-b3b4ecf7532d/스크린샷 2025-08-18 141955_20250825_003648_f6a52b0a.png\")",
       "Bash(powershell:*)",
       "Bash(tasklist:*)",
-      "Bash(timeout:*)"
+      "Bash(timeout:*)",
+      "Bash(chmod:*)",
+      "Bash(cat:*)",
+      "Bash(dotnet --version)"
     ],
     "deny": [],
     "ask": [],

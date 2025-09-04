@@ -1,0 +1,437 @@
+/* Enhanced Notification Animations */
+
+/* Bell ring animation */
+@keyframes bell-ring {
+  0% { transform: rotate(0deg); }
+  15% { transform: rotate(15deg); }
+  30% { transform: rotate(-10deg); }
+  45% { transform: rotate(5deg); }
+  60% { transform: rotate(-5deg); }
+  75% { transform: rotate(2deg); }
+  85% { transform: rotate(-1deg); }
+  100% { transform: rotate(0deg); }
+}
+
+.animate-bell-ring {
+  animation: bell-ring 1s ease-in-out infinite;
+}
+
+/* Enhanced slide animations */
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%) scale(0.8);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes slideOutRight {
+  from {
+    transform: translateX(0) scale(1);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(100%) scale(0.8);
+    opacity: 0;
+  }
+}
+
+/* Fade and slide in animation for dropdown */
+@keyframes fadeSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Enhanced pulse animation */
+@keyframes enhanced-pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.05);
+  }
+}
+
+/* Bounce with glow effect */
+@keyframes bounce-glow {
+  0%, 20%, 53%, 80%, 100% {
+    transform: translate3d(0, 0, 0) scale(1);
+    box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
+  }
+  40%, 43% {
+    transform: translate3d(0, -8px, 0) scale(1.1);
+    box-shadow: 0 8px 25px rgba(59, 130, 246, 0.6);
+  }
+  70% {
+    transform: translate3d(0, -4px, 0) scale(1.05);
+    box-shadow: 0 6px 20px rgba(59, 130, 246, 0.5);
+  }
+  90% {
+    transform: translate3d(0, -1px, 0) scale(1.02);
+  }
+}
+
+/* Notification item hover effects */
+.notification-item {
+  position: relative;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.notification-item:hover {
+  transform: translateX(4px);
+}
+
+.notification-item::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -4px;
+  bottom: 0;
+  width: 4px;
+  background: linear-gradient(to bottom, #3b82f6, #1d4ed8);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.notification-item:hover::before {
+  opacity: 1;
+}
+
+/* Priority indicators with animations */
+.priority-urgent {
+  animation: enhanced-pulse 1.5s infinite;
+  background: linear-gradient(45deg, #ef4444, #dc2626);
+  box-shadow: 0 0 20px rgba(239, 68, 68, 0.6);
+}
+
+.priority-high {
+  background: linear-gradient(45deg, #f97316, #ea580c);
+  box-shadow: 0 0 15px rgba(249, 115, 22, 0.4);
+}
+
+.priority-medium {
+  background: linear-gradient(45deg, #eab308, #ca8a04);
+  box-shadow: 0 0 10px rgba(234, 179, 8, 0.3);
+}
+
+.priority-low {
+  background: linear-gradient(45deg, #6b7280, #4b5563);
+  box-shadow: 0 0 5px rgba(107, 114, 128, 0.2);
+}
+
+/* Toast entrance animations */
+@keyframes toastSlideInRight {
+  from {
+    transform: translateX(100%) rotateY(90deg);
+    opacity: 0;
+  }
+  50% {
+    transform: translateX(0) rotateY(45deg);
+    opacity: 0.8;
+  }
+  to {
+    transform: translateX(0) rotateY(0deg);
+    opacity: 1;
+  }
+}
+
+@keyframes toastSlideOutRight {
+  from {
+    transform: translateX(0) rotateY(0deg);
+    opacity: 1;
+  }
+  50% {
+    transform: translateX(50%) rotateY(-45deg);
+    opacity: 0.5;
+  }
+  to {
+    transform: translateX(100%) rotateY(-90deg);
+    opacity: 0;
+  }
+}
+
+/* Enhanced glow effects */
+.glow-blue {
+  box-shadow: 
+    0 0 20px rgba(59, 130, 246, 0.3),
+    0 0 40px rgba(59, 130, 246, 0.2),
+    0 0 60px rgba(59, 130, 246, 0.1);
+}
+
+.glow-green {
+  box-shadow: 
+    0 0 20px rgba(16, 185, 129, 0.3),
+    0 0 40px rgba(16, 185, 129, 0.2),
+    0 0 60px rgba(16, 185, 129, 0.1);
+}
+
+.glow-red {
+  box-shadow: 
+    0 0 20px rgba(239, 68, 68, 0.3),
+    0 0 40px rgba(239, 68, 68, 0.2),
+    0 0 60px rgba(239, 68, 68, 0.1);
+}
+
+.glow-amber {
+  box-shadow: 
+    0 0 20px rgba(245, 158, 11, 0.3),
+    0 0 40px rgba(245, 158, 11, 0.2),
+    0 0 60px rgba(245, 158, 11, 0.1);
+}
+
+/* Shimmer loading effect */
+@keyframes shimmer {
+  0% {
+    background-position: -468px 0;
+  }
+  100% {
+    background-position: 468px 0;
+  }
+}
+
+.shimmer {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 468px 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* Floating animation for important notifications */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  25% {
+    transform: translateY(-5px) rotate(1deg);
+  }
+  50% {
+    transform: translateY(-10px) rotate(0deg);
+  }
+  75% {
+    transform: translateY(-5px) rotate(-1deg);
+  }
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+/* Progress bar animations */
+@keyframes progressPulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+.progress-bar {
+  transition: width 0.1s linear;
+  background: linear-gradient(90deg, rgba(255,255,255,0.8), rgba(255,255,255,0.6));
+}
+
+.progress-bar.pulsing {
+  animation: progressPulse 2s ease-in-out infinite;
+}
+
+/* Notification count badge animations */
+@keyframes badgeScale {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.notification-badge.new {
+  animation: badgeScale 0.6s ease-out;
+}
+
+/* Custom scrollbar for notification list */
+.notification-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(156, 163, 175, 0.5) transparent;
+}
+
+.notification-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.notification-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.notification-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgba(156, 163, 175, 0.5);
+  border-radius: 3px;
+  transition: background-color 0.2s ease;
+}
+
+.notification-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(156, 163, 175, 0.8);
+}
+
+/* Stagger animation for notification list items */
+.notification-list-enter {
+  animation: staggerFadeIn 0.5s ease-out forwards;
+}
+
+@keyframes staggerFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.notification-list-enter:nth-child(1) { animation-delay: 0.1s; }
+.notification-list-enter:nth-child(2) { animation-delay: 0.2s; }
+.notification-list-enter:nth-child(3) { animation-delay: 0.3s; }
+.notification-list-enter:nth-child(4) { animation-delay: 0.4s; }
+.notification-list-enter:nth-child(5) { animation-delay: 0.5s; }
+
+/* Connection status indicator */
+.connection-indicator {
+  position: relative;
+  display: inline-block;
+}
+
+.connection-indicator::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  border-radius: inherit;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.connection-indicator.connected::before {
+  background: conic-gradient(from 0deg, #10b981, #059669, #047857, #10b981);
+  opacity: 0.7;
+  animation: spin 2s linear infinite;
+}
+
+.connection-indicator.connecting::before {
+  background: conic-gradient(from 0deg, #f59e0b, #d97706, #b45309, #f59e0b);
+  opacity: 0.7;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .notification-item {
+    background: rgba(31, 41, 55, 0.9);
+    border-color: rgba(75, 85, 99, 0.3);
+  }
+  
+  .notification-item:hover {
+    background: rgba(55, 65, 81, 0.9);
+  }
+  
+  .shimmer {
+    background: linear-gradient(90deg, #374151 25%, #4b5563 50%, #374151 75%);
+  }
+  
+  .notification-scrollbar::-webkit-scrollbar-thumb {
+    background-color: rgba(156, 163, 175, 0.3);
+  }
+  
+  .notification-scrollbar::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(156, 163, 175, 0.6);
+  }
+}
+
+/* Reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  .animate-bell-ring,
+  .animate-bounce,
+  .animate-pulse,
+  .animate-float,
+  .priority-urgent,
+  .notification-badge.new,
+  .connection-indicator.connected::before,
+  .connection-indicator.connecting::before {
+    animation: none;
+  }
+  
+  .notification-item,
+  .progress-bar {
+    transition: none;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .notification-item {
+    border: 2px solid;
+  }
+  
+  .notification-item.unread {
+    border-color: #1d4ed8;
+  }
+  
+  .priority-urgent {
+    border: 3px solid #dc2626;
+  }
+  
+  .priority-high {
+    border: 2px solid #ea580c;
+  }
+}
+
+/* Mobile optimizations */
+@media (max-width: 640px) {
+  .notification-dropdown {
+    width: calc(100vw - 2rem);
+    max-width: none;
+    left: 1rem;
+    right: 1rem;
+    transform: none;
+  }
+  
+  .notification-item {
+    padding: 1rem;
+  }
+  
+  .notification-item:hover {
+    transform: none;
+  }
+}
+
+/* Print styles */
+@media print {
+  .notification-bell,
+  .toast-container {
+    display: none !important;
+  }
+}

@@ -1,0 +1,91 @@
+/* Responsive styles for mobile */
+@media (max-width: 768px) {
+  /* Hide user info text on mobile */
+  .user-info {
+    display: none !important;
+  }
+  
+  /* Show mobile navigation */
+  .mobile-nav {
+    display: flex !important;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  
+  /* Hide desktop navigation on mobile */
+  .desktop-nav {
+    display: none !important;
+  }
+  
+  /* Tab navigation adjustments */
+  .tab-navigation {
+    padding: 0 1rem;
+  }
+  
+  /* Hide scrollbar on webkit browsers */
+  .tab-navigation::-webkit-scrollbar {
+    display: none;
+  }
+  
+  /* Tab button adjustments for mobile */
+  .tab-button {
+    padding: 0.75rem 1rem !important;
+  }
+  
+  /* Hide long labels on mobile, show short labels */
+  .tab-label {
+    display: none !important;
+  }
+  
+  .tab-short-label {
+    display: block !important;
+  }
+  
+  /* Container padding adjustments */
+  .container {
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+  }
+  
+  /* Card grid adjustments */
+  .grid.grid-3 {
+    grid-template-columns: 1fr !important;
+    gap: 1rem !important;
+  }
+  
+  /* Notification bell popup adjustments */
+  .relative .absolute {
+    width: calc(100vw - 2rem) !important;
+    max-width: 300px !important;
+    right: -1rem !important;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Further mobile optimizations */
+  .tab-button {
+    padding: 0.5rem 0.75rem !important;
+    font-size: 0.75rem !important;
+  }
+  
+  /* Notification popup full width on very small screens */
+  .relative .absolute {
+    width: calc(100vw - 1rem) !important;
+    right: -0.5rem !important;
+  }
+}
+
+/* Desktop specific styles */
+@media (min-width: 769px) {
+  .mobile-nav {
+    display: none !important;
+  }
+  
+  .tab-short-label {
+    display: none !important;
+  }
+  
+  .tab-label {
+    display: block !important;
+  }
+}

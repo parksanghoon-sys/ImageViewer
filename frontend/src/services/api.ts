@@ -1,27 +1,18 @@
 import axios from 'axios';
 
-const BASE_URL = 'http://localhost:5294'; // AuthService URL
+const BASE_URL = 'http://localhost:5000'; // API Gateway URL
 
-export const authApi = axios.create({
+export const api = axios.create({
   baseURL: BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-export const imageApi = axios.create({
-  baseURL: 'http://localhost:5295', // ImageService URL (will be available when EF issue is fixed)
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
-
-export const shareApi = axios.create({
-  baseURL: 'http://localhost:5296', // ShareService URL (will be available when EF issue is fixed)
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
+// For backward compatibility
+export const authApi = api;
+export const imageApi = api;
+export const shareApi = api;
 
 // Define response types
 interface LoginResponse {
@@ -51,40 +42,14 @@ export const authService = {
     return response.data;
   },
   
-  health: async () => {
-    const response = await authApi.get('/health');
+  getUsers: async () => {
+    const response = await api.get('/api/auth/users');
     return response.data;
   }
 };
 
 // Interceptor to add auth token to requests
-authApi.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('accessToken');
-    if (token && config.headers) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
-
-imageApi.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('accessToken');
-    if (token && config.headers) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
-
-shareApi.interceptors.request.use(
+api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('accessToken');
     if (token && config.headers) {

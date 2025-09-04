@@ -90,12 +90,17 @@ app.UseAuthorization();
 app.MapControllers();
 
 // 헬스 체크 엔드포인트
-app.MapGet("/health", () => new 
-{ 
-    Status = "Healthy", 
-    Service = "AuthService", 
-    Timestamp = DateTime.UtcNow,
-    Database = "InMemory"
+app.MapGet("/health", (IServiceProvider serviceProvider) => 
+{
+    var databaseOptions = serviceProvider.GetRequiredService<Microsoft.Extensions.Options.IOptions<ImageViewer.Infrastructure.Configuration.DatabaseOptions>>().Value;
+    
+    return new 
+    { 
+        Status = "Healthy", 
+        Service = "AuthService", 
+        Timestamp = DateTime.UtcNow,
+        Database = databaseOptions.GetDatabaseTypeString()
+    };
 })
 .WithName("HealthCheck")
 .WithOpenApi();

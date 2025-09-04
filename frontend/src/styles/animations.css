@@ -1,0 +1,111 @@
+/* Custom animations for notifications */
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideOutRight {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes bounceIn {
+  0% {
+    transform: scale(0.3);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes bell-ring {
+  0%, 50%, 100% {
+    transform: rotate(0deg);
+  }
+  10%, 30% {
+    transform: rotate(-10deg);
+  }
+  20%, 40% {
+    transform: rotate(10deg);
+  }
+}
+
+.animate-enter {
+  animation: slideInRight 0.3s ease-out;
+}
+
+.animate-leave {
+  animation: slideOutRight 0.3s ease-in;
+}
+
+.animate-bounce-in {
+  animation: bounceIn 0.3s ease-out;
+}
+
+.animate-bell-ring {
+  animation: bell-ring 0.6s ease-in-out;
+}
+
+/* Scrollbar styles */
+.scrollbar-thin {
+  scrollbar-width: thin;
+}
+
+.scrollbar-thumb-gray-300::-webkit-scrollbar-thumb {
+  background-color: rgb(209, 213, 219);
+  border-radius: 6px;
+}
+
+.scrollbar-track-gray-100::-webkit-scrollbar-track {
+  background-color: rgb(243, 244, 246);
+  border-radius: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+/* Line clamp utility */
+.line-clamp-1 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+}
+
+.line-clamp-2 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
