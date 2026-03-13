@@ -82,13 +82,13 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_URLS=http://+:5002
+      - ImageStorage__Path=${IMAGE_STORAGE_CONTAINER_PATH:-/app/storage/images}
       - Database__Type=PostgreSQL
       - Database__ConnectionStrings__PostgreSQL=Host=postgres;Port=5432;Database=${POSTGRES_DB:-ImageViewerDB};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-password123}
       - RabbitMQ__Host=rabbitmq
       - JWT__Secret=${JWT_SECRET:-SuperSecretKeyForDevelopment123!}
     volumes:
-      - image_uploads:/app/wwwroot/uploads
-      - image_thumbnails:/app/wwwroot/thumbnails
+      - ${IMAGE_STORAGE_PATH:-./storage/images}:${IMAGE_STORAGE_CONTAINER_PATH:-/app/storage/images}
     ports:
       - "5002:5002"
     depends_on:
@@ -155,8 +155,6 @@ services:
 volumes:
   postgres_data:
   rabbitmq_data:
-  image_uploads:
-  image_thumbnails:
 
 networks:
   imageviewer-network:
